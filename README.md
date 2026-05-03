@@ -36,9 +36,9 @@ Uses a version of:
 Works in combination with the PCB.
 
 YAML which interfaces with 
-- i2c OLED 128x32, for local readout.
-- pellet level sensor (VL53L0X time-of-flight infrared distance sensor).
-- external temperature sensors (not connected in below image).
+- OLED screen for local readout (i2c OLED 128x32).
+- Pellet level sensor (i2c VL53L0X time-of-flight infrared distance sensor).
+- External temperature sensors (In below image the DSB18B20's are not connected).
 
 ![Description](esphome-stove-reader/openHAB-equipment.png)
 
