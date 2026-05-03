@@ -19,10 +19,11 @@ The PCB has JST-XH2.54 connectors for
 
 
 ### 2) Arduino `stove-ram-reader`
+I created it to find the correct address of the Fume-Temperature address for my stove type.
+
 Works in combination with the PCB.
 Code is for ArduinoIDE 2.x to program an 'ESP32 mini D1'.
 Program to interrogate the RAM and EEPROM registers and publishes it via its webserver.
-I created it to find the correct address of the Fume-Temperature address for my stove type.
 Its address is published via mDNS as `esp32.local`
 Webserver can be accessed at http://esp32.local/
 
