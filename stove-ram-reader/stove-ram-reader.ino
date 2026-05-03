@@ -291,16 +291,6 @@ void setup() {
     setupWeb();
 }
 
-void replace_newline(String& inputString) {
-    // Or replace specific newlines
-    for (int i = 0; i < inputString.length()-1; i++) {
-        if (inputString[i] == '\\' && inputString[i+1] == 'n') {
-            inputString[i] == ' ';
-            inputString[i+1] = '\n'; // Replace newline with a space
-        }
-    }
-}
-
 // ===== LOOP =====
 void loop() {
 
