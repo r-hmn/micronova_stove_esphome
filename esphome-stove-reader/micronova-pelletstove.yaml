@@ -1,0 +1,202 @@
+###############################################################################
+#
+# Mar 17,'26 - Changed Rx GPIO36 to have 10K external pullup. See pcb revision 10.
+#              Decrease Distance Sensorspeed from 200ms to 1sec, push every 10sec, no display refresh trigger. Display refresh still 10sec.
+#              Changed logger from DEBUG to INFO, to decrease Stove-serial-frame errors.
+#              Increased Micronova update from 1minute to 32sec
+# May  3,'26 - Set Fumes-temp address for ARTEL IDRO15
+###############################################################################
+esphome:
+  name: micronova-controller
+  friendly_name: Micronova PelletStove Controller
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+  id: api_id
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid__MAIN
+  password: !secret wifi_password__MAIN
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "PelletStove Fallback Hotspot"
+    password: !secret wifi_ap_password
+
+captive_portal:
+
+
+# ---------------------------
+# I2C BUS (OLED + Distance)
+# ---------------------------
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  scan: true
+  id: bus_i2c
+
+
+# ---------------------------
+# OLED DISPLAY
+# ---------------------------
+font:
+  - file: "gfonts://Roboto"
+    id: font_small
+    size: 12
+  - file: "gfonts://Roboto"
+    id: font_large
+    size: 15
+
+display:
+  - platform: ssd1306_i2c 
+    model: "SSD1306 128x32"  # Must be powered with 5V. With 3.3Volt it doesnt light up but does respond at i2c.
+    id: oled_display
+    i2c_id: bus_i2c
+    #rotation: 180
+    #reset_pin: D0
+    address: 0x3C
+    #invert: true
+    update_interval: 10s
+    pages:
+      - id: distance_page    
+        lambda: |-
+          if (id(stove_state).has_state() && id(stove_state).state != "unknown") {
+            it.printf(0, 0, id(font_small), "%s", id(stove_state).state.c_str());
+            
+            it.printf(0, 10, id(font_small), "%3.0f C, %4.0f RPM", id(exhaust_temp).state, id(fan_speed).state);
+          } else {
+            it.printf(0, 0, id(font_small), "No Pelletstove");
+          }
+
+          it.printf(64+32, 15, id(font_large), "%2.1f", id(ir_distance).state);
+
+          // Some client connected via the native ESPHome API, show (c)
+          if (id(api_status).state) {
+             it.print(118,0,id(font_small),"©");
+          } else {
+             it.print(118,0,id(font_small),"x");
+          }
+          
+
+# ---------------------------
+# DS18B20 Sensors
+# ---------------------------
+one_wire:
+  - platform: gpio
+    pin: GPIO18
+    id: ow_bus_1
+
+  - platform: gpio
+    pin: GPIO19
+    id: ow_bus_2
+
+
+# ---------------------------
+# UART BUS FOR MICRONOVA
+# ---------------------------
+uart:
+  id: micronova_uart
+  tx_pin: GPIO26
+  rx_pin: GPIO36
+  baud_rate: 1200
+  data_bits: 8
+  parity: NONE
+  stop_bits: 2
+
+
+# ---------------------------
+# MICRONOVA STOVE
+# ---------------------------
+micronova:
+  uart_id: micronova_uart
+  enable_rx_pin: GPIO16
+  update_interval: 32s
+
+text_sensor:
+  - platform: micronova
+    stove_state:
+      name: "Stove State"
+      id: stove_state
+
+sensor:
+  - platform: micronova
+    room_temperature:
+      name: Room temperature
+    stove_power:
+      name: Stove power level
+    fan_speed:
+      fan_rpm_offset: 240
+      name: Fan RPM
+      id: fan_speed
+    fumes_temperature:
+      # Custom "ARTEL IDRO15 GPAR" address for "Fumes Temperature" is 88
+      memory_address: 88
+      name: Exhaust Temp
+      id: exhaust_temp      
+    water_temperature:
+      name: Water temperature
+    water_pressure:
+      name: Water pressure
+
+
+# ---------------------------
+# INFRARED DISTANCE SENSOR / Time of flight sensor
+# ---------------------------
+  - platform: vl53l0x
+    name: "Pellet Distance"  # The XSHUT pin must be set to 3.3V(via 10KOhm) to operate. 5V will damage it.
+    address: 0x29
+    id: ir_distance
+    i2c_id: bus_i2c
+    update_interval: 1s
+    timeout: 20us
+    unit_of_measurement: "cm" # change the unit label
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          return x * 100.0;   // convert meters to cm   
+      - median:
+          window_size: 20
+          send_every: 10     # With these settings, every 10 x 1s = 10sec a value. Each 20 x 1s = 20 seconds the buffer is shifted out
+      - or:
+        - throttle: 600s     # at least every 10 minutes
+        - delta: 1           # at least with 1 cm change
+
+
+# --------------------
+# DS18B20 sensors
+#  Two busses which can each have multiple Dallas DS18B20 sensors.
+# --------------------
+  - platform: dallas_temp
+    one_wire_id: ow_bus_1
+    name: "Temperature Sensor 1"
+    id: temp1
+    update_interval: 10s
+
+  - platform: dallas_temp
+    one_wire_id: ow_bus_2
+    name: "Temperature Sensor 2"
+    id: temp2
+    update_interval: 10s
+
+
+# --------------------
+# Expose Client connection status
+# --------------------
+binary_sensor:
+  - platform: status
+    name: "PelletStove API Status"
+    id: api_status
