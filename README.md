@@ -1,5 +1,5 @@
 # micronova_stove_esphome
-Project for connecting a home automation system to ARTEL IDRO15 PelletStove.
+Three sub-projects for connecting a home automation system to ARTEL IDRO15 PelletStove.
 1. Kicad PCB for 'ESP32 mini D1'.
 2. Arduino-code for reading all RAM- and EEPROM-registers easily.
 3. ESPHOME-yaml for connecting the PelletStove to e.g. Home Assistent or OpenHAB.
