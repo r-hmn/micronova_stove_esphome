@@ -4,7 +4,8 @@
 #              Decrease Distance Sensorspeed from 200ms to 1sec, push every 10sec, no display refresh trigger. Display refresh still 10sec.
 #              Changed logger from DEBUG to INFO, to decrease Stove-serial-frame errors.
 #              Increased Micronova update from 1minute to 32sec
-# May  3,'26 - Set Fumes-temp address for ARTEL IDRO15
+# May  3,'26 - Set Fumes-temp address for ARTEL IDDRO15
+# May  5     - Set VLM timout to 100ms instead of 20us because of '[W][vl53l0x:265]: Pellet Distance - update called before prior reading complete - initiated:0 waiting_for_interrupt:1'
 ###############################################################################
 esphome:
   name: micronova-controller
@@ -49,7 +50,6 @@ i2c:
   scan: true
   id: bus_i2c
 
-
 # ---------------------------
 # OLED DISPLAY
 # ---------------------------
@@ -81,7 +81,8 @@ display:
           } else {
             it.printf(0, 0, id(font_small), "No Pelletstove");
           }
-
+          
+          //it.printf(0, 20, id(font_small), "Distance: %.1f cm", id(ir_distance).state);
           it.printf(64+32, 15, id(font_large), "%2.1f", id(ir_distance).state);
 
           // Some client connected via the native ESPHome API, show (c)
@@ -91,6 +92,8 @@ display:
              it.print(118,0,id(font_small),"x");
           }
           
+          //it.printf(0, 20, id(font_small), "T1: %.1f C, T2: %.1f C", id(temp1).state, id(temp2).state);
+
 
 # ---------------------------
 # DS18B20 Sensors
@@ -152,6 +155,11 @@ sensor:
     water_pressure:
       name: Water pressure
 
+    memory_address_sensor:
+      memory_location: 0x20
+      memory_address: 0x7d
+      name: Custom Address sensor
+
 
 # ---------------------------
 # INFRARED DISTANCE SENSOR / Time of flight sensor
@@ -162,7 +170,7 @@ sensor:
     id: ir_distance
     i2c_id: bus_i2c
     update_interval: 1s
-    timeout: 20us
+    timeout: 100ms
     unit_of_measurement: "cm" # change the unit label
     accuracy_decimals: 1
     filters:
@@ -174,6 +182,10 @@ sensor:
       - or:
         - throttle: 600s     # at least every 10 minutes
         - delta: 1           # at least with 1 cm change
+#    on_value:
+#      then:
+#        - component.update: oled_display
+
 
 
 # --------------------
@@ -191,7 +203,6 @@ sensor:
     name: "Temperature Sensor 2"
     id: temp2
     update_interval: 10s
-
 
 # --------------------
 # Expose Client connection status
